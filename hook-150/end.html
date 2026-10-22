@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Peepl film: the end</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&display=block" rel="stylesheet">
+<style>
+  /* The last scene, from the user's reference still (assets/end/reference.webp): "Peepl", "Remember the stories of the
+     people you meet" with "stories" highlighted, and on the right the mindmap's discs and dashed links with three
+     people's pills (Emily Tang, Vince Lin, Scarlett Wang). Background: assets/end/bg.png (make_end_bg.mjs). The discs and
+     pills slide and fade in from the right with a natural jiggle, then the text comes in the way the main film's does. */
+  :root { --ink: #16121c; --muted: #5b5361; --lime: #c6f04a; }
+  html, body { margin: 0; background: #000; }
+  #c { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #1c1622; font-family: 'Geist', 'Helvetica Neue', Arial, sans-serif; }
+  .flat { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; display: block; }
+  #links { position: absolute; inset: 0; overflow: visible; }
+  #links line { stroke: rgba(255, 255, 255, 0.92); stroke-width: 3; stroke-dasharray: 12 9; stroke-linecap: round; }
+  .disc { position: absolute; left: 0; top: 0; }
+  /* The prototype's disc (as in intro.html): white 50%, layer 60%, a soft white inner glow; a white dot in the middle */
+  .disc i { position: absolute; border-radius: 50%; background: rgba(255, 255, 255, 0.42); opacity: 0.52;
+    box-shadow: inset 0 0 22px 8px #fff; transform: translate(-50%, -50%); }
+  .disc b { position: absolute; border-radius: 50%; background: #fff; transform: translate(-50%, -50%); box-shadow: 0 2px 8px rgba(23, 18, 28, 0.18); }
+  /* A person's pill (the prototype's map pill) */
+  .pill { position: absolute; left: 0; top: 0; height: 92px; box-sizing: border-box; display: flex; align-items: center; gap: 18px;
+    padding: 0 40px 0 18px; border-radius: 46px; background: rgba(255, 255, 255, 0.86);
+    box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.6), 0 12px 36px rgba(8, 4, 14, 0.18); opacity: 0; }
+  .pill img { width: 68px; height: 68px; border-radius: 50%; border: 3px solid #fff; box-sizing: border-box; display: block; }
+  .pill .name { font-weight: 500; font-size: 28.5px; line-height: 34px; letter-spacing: -0.6px; color: var(--ink); }
+  .pill .role { font-weight: 400; font-size: 22.5px; line-height: 30px; color: var(--muted); }
+  /* The words */
+  .w { position: absolute; left: 0; top: 0; margin: 0; white-space: nowrap; color: #fff; }
+  .w span { display: inline-block; position: relative; transform-origin: 50% 70%; }
+  #peepl { font-size: 279px; line-height: 1; letter-spacing: -0.04em; }
+  .line2 { font-size: 72px; line-height: 1; letter-spacing: -0.04em; }
+  .hl { position: absolute; z-index: -1; left: -6px; top: -4px; height: 80px; width: 0; background: var(--lime); }
+</style>
+</head>
+<body>
+<div id="c">
+  <img class="flat" src="assets/end/bg.png" alt="">
+  <svg id="links" width="1920" height="1080"></svg>
+  <div id="discs"></div>
+  <div class="pill" id="p0"><img src="assets/end/emily.png" alt=""><div><div class="name">Emily Tang</div><div class="role">Product Designer</div></div></div>
+  <div class="pill" id="p1"><img src="assets/end/vince.png" alt=""><div><div class="name">Vince Lin</div><div class="role">Product Designer</div></div></div>
+  <div class="pill" id="p2"><img src="assets/end/scarlett.png" alt=""><div><div class="name">Scarlett Wang</div><div class="role">Product Designer</div></div></div>
+  <p class="w" id="peepl"><span>Peepl</span></p>
+  <p class="w line2" id="l1"><span>Remember</span> <span>the</span> <span id="stories"><i class="hl"></i>stories</span></p>
+  <p class="w line2" id="l2"><span>of</span> <span>the</span> <span>people</span> <span>you</span> <span>meet</span></p>
+</div>
+<script type="module">
+import { clamp, spring } from '../lib/motion.js';
+import { smooth } from './typing.js';
+
+// ---- Layout, from the reference (frame px) ----
+// discs: center x, y, radius, dot radius (0: no dot)
+const DISCS = [[1390, 15, 110, 0], [1226, 195, 72, 13], [1340, 305, 62, 12], [1473, 255, 112, 17], [1657, 269, 70, 13], [1831, 288, 112, 18],
+  [1707, 434, 112, 18], [1391, 585, 160, 24], [1606, 725, 160, 24], [1341, 816, 160, 24], [1888, 590, 85, 16], [1890, 765, 95, 16], [1774, 1008, 98, 16]];
+const LINKS = [[2, 3], [2, 6], [3, 7], [4, 5], [4, 6], [5, 6], [7, 8], [7, 9], [9, 8], [8, 11], [10, 11]];
+const PILLS = [[1268, 444], [1542, 775], [1140, 874]];       // top-left corners
+const TEXT = { peepl: [110, 240], l1: [105, 571], l2: [105, 648] };
+
+// ---- Script ----
+const DISC_IN = [0.25, 0.7];        // the discs slide in from the right (start, spread)
+const PILL_IN = [1.15, 0.22];       // then the pills (start, gap)
+const PEEPL = 1.9, LINE = 2.45, GAP = 0.09, HL = LINE + 2 * GAP + 0.35;
+const DURATION = 6.6;
+window.DURATION = DURATION;
+window.CUES = { discs: DISC_IN[0], pills: PILL_IN[0], peepl: PEEPL, line: LINE, hl: HL };   // for the music (sound.py)
+
+let seed = 5;
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+const $ = (id) => document.getElementById(id);
+const discEls = DISCS.map(([x, y, r, dr]) => {
+  const el = document.createElement('div'); el.className = 'disc';
+  const o = document.createElement('i'); o.style.width = o.style.height = `${2 * r}px`; el.appendChild(o);
+  if (dr) { const d = document.createElement('b'); d.style.width = d.style.height = `${2 * dr}px`; el.appendChild(d); }
+  $('discs').appendChild(el);
+  return { el, x, y, r, at: DISC_IN[0] + rnd() * DISC_IN[1], dx: 360 + rnd() * 260, dy: (rnd() - 0.5) * 160,
+    w1: 0.8 + rnd() * 0.7, w2: 0.7 + rnd() * 0.8, p1: rnd() * 6.3, p2: rnd() * 6.3 };
+});
+const linkEls = LINKS.map(([a, b]) => { const ln = document.createElementNS('http://www.w3.org/2000/svg', 'line'); $('links').appendChild(ln); return { ln, a, b }; });
+const pillEls = PILLS.map(([x, y], i) => ({ el: $('p' + i), x, y, at: PILL_IN[0] + i * PILL_IN[1], w1: 0.9 + i * 0.2, p1: i * 2.1 }));
+const place = (id, [x, y]) => { $(id).style.left = `${x}px`; $(id).style.top = `${y}px`; };
+place('peepl', TEXT.peepl); place('l1', TEXT.l1); place('l2', TEXT.l2);
+const words = [...document.querySelectorAll('#l1 > span, #l2 > span')];
+const hl = document.querySelector('.hl'), stories = $('stories');
+const INK = [22, 18, 28];
+let hlW = 0;
+
+// The main film's text entrance: each word fades in from blurred to sharp, a little larger, settling down
+const enter = (el, t0, size) => {
+  const q = clamp((t0) / 0.85), a = 1 - (1 - q) ** 3, inv = 1 - a;
+  el.style.opacity = a.toFixed(3);
+  el.style.filter = inv > 0.003 ? `blur(${(size * 0.11 * inv).toFixed(2)}px)` : '';
+  el.style.transform = `translateY(${(size * 0.1 * inv).toFixed(2)}px) scale(${(1 + 0.12 * inv).toFixed(4)})`;
+};
+
+window.seek = (t) => {
+  // Discs: slide in from the right on a loose spring, fading in, then keep drifting a little
+  const pos = discEls.map((d) => {
+    const e = spring(t - d.at, 60, 10.5);
+    const x = d.x + (1 - e) * d.dx + Math.sin(t * d.w1 + d.p1) * 6, y = d.y + (1 - e) * d.dy + Math.cos(t * d.w2 + d.p2) * 6;
+    d.el.style.transform = `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px)`;
+    d.el.style.opacity = smooth(clamp((t - d.at) / 0.45)).toFixed(3);
+    return [x, y, +d.el.style.opacity];
+  });
+  linkEls.forEach(({ ln, a, b }) => {
+    ln.setAttribute('x1', pos[a][0].toFixed(1)); ln.setAttribute('y1', pos[a][1].toFixed(1));
+    ln.setAttribute('x2', pos[b][0].toFixed(1)); ln.setAttribute('y2', pos[b][1].toFixed(1));
+    ln.style.opacity = Math.min(pos[a][2], pos[b][2]).toFixed(3);
+  });
+  // Pills: slide in from the right and settle, with the same gentle drift
+  pillEls.forEach((p) => {
+    const e = spring(t - p.at, 120, 14);
+    const x = p.x + (1 - e) * 240 + Math.sin(t * p.w1 + p.p1) * 4, y = p.y + Math.cos(t * p.w1 * 0.8 + p.p1) * 4;
+    p.el.style.transform = `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px)`;
+    p.el.style.opacity = smooth(clamp((t - p.at) / 0.35)).toFixed(3);
+  });
+  // Text: "Peepl", then the line word by word; "stories" gets its lime highlight, its text blending to ink
+  enter($('peepl').firstChild, t - PEEPL, 279);
+  words.forEach((w, i) => enter(w, t - LINE - i * GAP, 72));
+  const hp = clamp(spring(t - HL, 220, 24), 0, 1.04);
+  hl.style.width = `${(hlW * hp).toFixed(2)}px`;
+  const c = smooth(clamp((hp - 0.1) / 0.6));
+  stories.style.color = `rgb(${[255, 255, 255].map((v, i) => Math.round(v + (INK[i] - v) * c)).join(',')})`;
+};
+
+window.ready = (async () => {
+  await document.fonts.load("400 279px 'Geist'");
+  await document.fonts.load("500 28px 'Geist'");
+  await document.fonts.ready;
+  await Promise.all([...document.images].map((im) => im.decode().catch(() => {})));
+  hlW = stories.getBoundingClientRect().width + 12;
+  window.seek(0);
+})();
+if (new URLSearchParams(location.search).has('play')) {
+  window.ready.then(() => { const t0 = performance.now(); const loop = (now) => { window.seek(((now - t0) / 1000) % DURATION); requestAnimationFrame(loop); }; requestAnimationFrame(loop); });
+}
+</script>
+</body>
+</html>

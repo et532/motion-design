@@ -16,9 +16,9 @@
 #   8. Find someone (find.html): "I want to find someone to go climbing with me" typed in a search box that fills the
 #      frame, pulled back to the box, then to the phone (on Vince's night background); send, the recorded results, "Why
 #      Jordan" (glass); the note and the phone leave. 0.8s crossfade in.
-#   9. Vince's last scene ("Peepl. Capture. Search. Reconnect." and the phone, v17 copy with the updated mindmap screen,
-#      assets/end/home_jl.png from make_end_assets.mjs, no cursor), 0.8s crossfade in; its last frame holds 1.5s.
-# Speeds (user's call): everything 1.4x, except "Speak into the mic" to the new profile (create.html, 1x) and the phone
+#   9. The last scene (end.html, from the user's still): the mindmap's discs and three people's pills slide in on the
+#      right, then "Peepl" and "Remember the stories of the people you meet". 0.8s crossfade in, at its own pace (1x).
+# Speeds (user's call): everything 1.4x (the last scene is timed at its own pace), except "Speak into the mic" to the new profile (create.html, 1x) and the phone
 # part of find.html (1x; its typing is 1.4x, easing to 1x while the box settles, before the phone). Vince's first shot
 # was at 65% and is now 0.65 x 1.4 = 91%.
 # Run from anywhere:  zsh ~/motion-design/hook-150/make_cut.sh [draft|final]
@@ -70,10 +70,7 @@ rm -f .cut-ask.tmp.html
 R=($(ask hook-150/find.html "[window.DURATION, ...window.RAMP].join(' ')"))
 seg find hook-150/find.html 0 $R[1] --speedmap "$R[2]:1.4,$R[3]:1"
 
-vince end < index.html
-R=($(ask .cut-end.tmp.html "[window.filmTime(window.BGT.end)-0.3,window.TOTAL].map((x)=>x.toFixed(3)).join(' ')"))
-seg end .cut-end.tmp.html $R[1] $R[2] --speed 1.4
-rm -f .cut-end.tmp.html
+seg end hook-150/end.html 0 "$(ask hook-150/end.html window.DURATION)" --speed 1
 
 # Join them (crossfades), work out where every typed key lands, make the sound, put it all together
 python3 hook-150/assemble.py "$FPS"

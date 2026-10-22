@@ -18,8 +18,8 @@ in, and halfway the camera pulls back to the phone (Jordan's profile, scrolled t
 either side of it. Then the main film's "Ask your own notes." and its three prompts (prompts after the headline),
 then "I want to find someone to go climbing with me" typed in a search box that fills the frame (`find.html`): the camera
 pulls back to the box, then to the phone (on the main film's night background); send, the main film's recorded results,
-and its "Why Jordan" note. It ends on the main film's last scene ("Peepl. Capture. Search. Reconnect."), its phone
-showing the updated mindmap.
+and its "Why Jordan" note. It ends on the last scene (`end.html`, from the user's still): the mindmap's
+discs and three people's pills slide in on the right, then "Peepl" and "Remember the stories of the people you meet".
 
 **Designs:** Figma file `bV6DQFxu5SHuF6hE5NIDeb`, page "Video Edits": Frames 1-3 and 16-19 (hook), 25, 22, 23, 26, 27,
 28 (Introducing Peepl), then the phone frames 427:6972 / 427:6981 and "2.6 Person profile / View details" (427:7102,
@@ -39,7 +39,9 @@ screen recording reference (letters fade and sharpen in, the caret jumps after e
 - `find.html`: the find-someone flow, Figma 450:10511 / 452:10657 / 452:10683 / 452:10693, assets in `assets/find/`
   (plus the main film's recorded results, `../assets/figma/v14/ask_seq`, with "[Startup]" redrawn as "Peepl").
 - `create.html`: "Speak into the mic" to Jordan's new profile (same contract), assets in `assets/create/`.
-- `make_end_assets.mjs`: draws `assets/end/home_jl.png` (the intro's phone screen, for the main film's last scene) and
+- `end.html`: the last scene; its background `assets/end/bg.png` is rebuilt from the reference still by `make_end_bg.mjs`
+  (find.html uses it too).
+- `make_end_assets.mjs` (no longer used by the cut): draws `assets/end/home_jl.png` (the intro's phone screen, for the main film's last scene) and
   `assets/find/dark.png` (its night background, for find.html).
 - `assemble.py`: joins the rendered shots (crossfades), maps typed keys and beats onto the film's clock
   (`out/timeline.json`), runs `sound.py` and puts picture and sound together.

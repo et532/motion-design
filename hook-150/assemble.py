@@ -11,7 +11,7 @@ FF = 'ffmpeg'
 # shot, how it comes in (ffmpeg xfade transition, seconds), seconds its last frame holds
 SHOTS = [('hook', None, 0, 0), ('problem', 'fade', 0.4, 0), ('intro', 'smoothright', 0.6, 0), ('create', 'fade', 0.3, 0),
          ('story', 'fade', 0.8, 0), ('moment', 'fade', 0.8, 0), ('ask', 'fade', 0.8, 0), ('find', 'fade', 0.8, 0),
-         ('end', 'fade', 0.8, 1.5)]
+         ('end', 'fade', 0.8, 0)]
 
 segs, start = [], 0.0
 for i, (name, how, xd, hold) in enumerate(SHOTS):

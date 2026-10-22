@@ -7,7 +7,7 @@
 #   Vince's "Meeting people is easy / hard": the same bed, a little darker, a ticking pulse
 #   "Introducing Peepl": a swell into a hit on the cut to "Peepl", then the beat (soft kick, brush) for the product
 #   the memory playing back: the beat drops out, intimate; a bloom when play is tapped
-#   the last scene: a swell into a boom on the wordmark, the full chord, ringing out
+#   the last scene: blooms as the discs and pills come in, a swell into a boom on "Peepl", the full chord, ringing out
 #   typing: a short keyboard click (a bright tick and a soft body) on every typed letter, a little different each time
 import json
 import numpy as np, soundfile as sf
@@ -114,7 +114,9 @@ put(cue('find', 'note'), bloom(587.33, 1.2), 0.06)
 for s in TL['segments'][1:]:  # soft air under each crossfade
     put(s['start'] - 0.2, whoosh(s['xd'] + 0.4, 700), 0.07)
 # The end: a swell into a boom on the wordmark, the full chord ringing out
-we = S('end') + 1.3
+we = cue('end', 'peepl') or S('end') + 1.3
+for i, f in enumerate((587.33, 739.99, 880.0)):   # the discs and the pills coming in
+    put((cue('end', 'pills') or we - 0.7) + i * 0.22, bloom(f, 1.2), 0.05)
 put(we - 1.3, swell(1.3, 1100), 0.25); put(we, boom(), 0.85)
 put(we, pad((73.42, 146.83, 220.0, 277.18, 369.99), DUR - we + 0.5, a=0.1, fc=1600), 0.5)
 for i, f in enumerate((587.33, 739.99, 880.0)):
