@@ -9,8 +9,8 @@
 #             4, offbeat hats, a bouncing eighth-note bass, the plucked arpeggio
 #   the memory playing back: half-time, softer (felt notes); a bloom when play is tapped
 #   the last scene: blooms as the discs and pills come in, a swell into a boom on "Peepl", the full chord, ringing out
-#   typing: the user's typing recording (assets/sound/typing.wav), cut into its ~50 keystrokes; each typed letter gets
-#             one (never the same twice in a row), levelled, softened a little and given a touch of room so it sits in
+#   typing: the user's typing recording (assets/sound/typing.wav) at its own speed, quietly, under each run of typing,
+#             softened a little and given a touch of room so it sits in
 import json
 import numpy as np, soundfile as sf
 from scipy.signal import butter, sosfilt
@@ -56,30 +56,10 @@ def felt(f, d=0.9):  # soft felt-piano note
     t = tt(d); return lp((np.sin(2 * np.pi * f * t) + 0.25 * np.sin(4 * np.pi * f * t)) * np.exp(-t * 4.5) * np.minimum(1, t / 0.008), 1100)
 def bloom(f, d=1.2):  # soft sine swell
     t = tt(d); return np.sin(2 * np.pi * f * t) * np.sin(np.pi * (t / d)) ** 2 * 0.8
-# The keystrokes in the user's recording: found by their attack (3ms energy over 0.015, at least 90ms apart), each cut
-# from just before it to just before the next (at most 0.16s: the press and its release), faded out, levelled to the
-# same peak
-def _keystrokes():
-    x, sr = sf.read('hook-150/assets/sound/typing.wav')
-    if x.ndim > 1: x = x.mean(1)
-    w = int(0.003 * sr); e = np.sqrt(np.convolve(x ** 2, np.ones(w) / w, 'same'))
-    on, last = [], -10 ** 9
-    for i in range(1, len(e)):
-        if e[i] > 0.015 >= e[i - 1] and i - last > int(0.09 * sr): on.append(i); last = i
-    bank = []
-    for k, o in enumerate(on):
-        a = max(0, o - int(0.003 * sr)); b = min(len(x), o + int(0.16 * sr), on[k + 1] - int(0.005 * sr) if k + 1 < len(on) else len(x))
-        c = x[a:b].copy(); n = len(c); f = min(n, int(0.025 * sr))
-        c[:int(0.002 * sr)] *= np.linspace(0, 1, int(0.002 * sr)); c[n - f:] *= np.linspace(1, 0, f)
-        bank.append(c / (np.abs(c).max() + 1e-9))
-    return bank
-KEYS = _keystrokes()
-_last = [-1]
-def key():
-    i = int(rng.integers(len(KEYS)))
-    while i == _last[0]: i = int(rng.integers(len(KEYS)))
-    _last[0] = i
-    return KEYS[i] * rng.uniform(0.8, 1.0)
+# The user's typing recording, played as it is (its own speed): it types from 2.35s to 9.2s
+REC, _sr = sf.read('hook-150/assets/sound/typing.wav')
+if REC.ndim > 1: REC = REC.mean(1)
+REC_SPAN = (int(2.35 * SR), int(9.2 * SR))
 
 BEAT = 60 / 118; BAR = 4 * BEAT                             # 118 BPM
 CH = [(146.83, 220.0, 293.66, 369.99), (110.0, 164.81, 220.0, 277.18), (123.47, 185.0, 246.94, 293.66), (98.0, 146.83, 196.0, 246.94)]  # D A Bm G
@@ -180,10 +160,21 @@ put(we, pad((73.42, 146.83, 220.0, 277.18, 369.99), DUR - we + 0.5, a=0.1, fc=16
 for i, f in enumerate((587.33, 739.99, 880.0)):
     put(we + 0.5 + i * 0.35, felt(f, 2.5), 0.12)
 
-# Typing
-for s in TL['segments']:
-    for k in s['keys']:
-        put(k, key(), 0.42, keys_out)
+# Typing: wherever text is being typed (letters less than 0.4s apart make one run), the next stretch of the recording
+# plays at its own speed for as long as the run, faded in and out; the keys don't have to match the letters
+cursor = REC_SPAN[0]
+for seg in TL['segments']:
+    ks = sorted(seg['keys']); runs = []
+    for k in ks:
+        if runs and k - runs[-1][1] < 0.4: runs[-1][1] = k
+        else: runs.append([k, k])
+    for a0, a1 in runs:
+        n = int((a1 - a0 + 0.2) * SR)
+        if cursor + n > REC_SPAN[1]: cursor = REC_SPAN[0]
+        clip = REC[cursor:cursor + n].copy(); cursor += n
+        fi, fo = int(0.03 * SR), int(0.12 * SR)
+        clip[:fi] *= np.linspace(0, 1, fi); clip[-fo:] *= np.linspace(1, 0, fo)
+        put(a0 - 0.02, clip, 1.1, keys_out)
 
 # The keys: softened a little at the top, a short room (a 120ms decaying tail) so they sit in the music
 keys_out = lp(keys_out, 9000)
@@ -201,4 +192,4 @@ mix[over] = np.sign(mix[over]) * (th + (1 - th) * np.tanh((np.abs(mix[over]) - t
 n = len(mix); fi, fo = int(SR * 0.3), int(SR * 2.0)
 mix[:fi] *= np.linspace(0, 1, fi); mix[n - fo:] *= np.linspace(1, 0, fo)
 sf.write('hook-150/out/audio.wav', np.stack([mix, mix], 1).astype(np.float32), SR)
-print(f'audio: {n / SR:.2f}s, {sum(len(s["keys"]) for s in TL["segments"])} keys')
+print(f'audio: {n / SR:.2f}s')
