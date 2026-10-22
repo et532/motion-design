@@ -174,7 +174,7 @@ for seg in TL['segments']:
         clip = REC[cursor:cursor + n].copy(); cursor += n
         fi, fo = int(0.03 * SR), int(0.12 * SR)
         clip[:fi] *= np.linspace(0, 1, fi); clip[-fo:] *= np.linspace(1, 0, fo)
-        put(a0 - 0.02, clip, 1.1, keys_out)
+        put(a0 - 0.02, clip, 0.55, keys_out)   # about -25 dB under the music (user's call: quieter)
 
 # The keys: softened a little at the top, a short room (a 120ms decaying tail) so they sit in the music
 keys_out = lp(keys_out, 9000)
