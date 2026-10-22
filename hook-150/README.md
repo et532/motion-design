@@ -45,8 +45,9 @@ screen recording reference (letters fade and sharpen in, the caret jumps after e
   `assets/find/dark.png` (its night background, for find.html).
 - `assemble.py`: joins the rendered shots (crossfades), maps typed keys and beats onto the film's clock
   (`out/timeline.json`), runs `sound.py` and puts picture and sound together.
-- `sound.py`: the music (warm, 100 BPM; quiet in the hook and the memory, hits on the big moments) and a keyboard click
-  on every typed letter, synthesized with the main film's instruments.
+- `sound.py`: the music (synthesized with the main film's instruments: upbeat, 118 BPM, a groove from "Introducing Peepl"
+  on, half-time in the memory, hits on the big moments) and a keystroke on every typed letter, cut from the user's
+  typing recording (`assets/sound/typing.wav`).
 - `vince_copy.py`: the edits make_cut.sh makes to temporary copies of the main film to render its shots.
 - `typing.js`: the typed lines all three use (typing, caret, re-centering, cut-zooms, exits, Vince-style highlights).
 - `dots.js`: the colorful grid's dot positions and colors, from Figma Frame 17.

@@ -1,14 +1,16 @@
 # .venv/bin/python -I hook-150/sound.py   (from ~/motion-design; assemble.py runs it) -> hook-150/out/audio.wav
 # The music and the typing for the whole cut, placed from hook-150/out/timeline.json (where each shot starts, every
 # typed key and the shots' beats on the film's clock). Synthesized like the main film's sound.py (same instruments):
-# warm, low-passed; 100 BPM, Dmaj7 Bm7 Gmaj7 A.
-#   the hook: sparse and ambient (pad, a low drone, felt notes); a soft hit on "150 people", a swell into a low boom on
-#             the "rest?" zoom, a shimmer as the white dots fill in
-#   Vince's "Meeting people is easy / hard": the same bed, a little darker, a ticking pulse
-#   "Introducing Peepl": a swell into a hit on the cut to "Peepl", then the beat (soft kick, brush) for the product
-#   the memory playing back: the beat drops out, intimate; a bloom when play is tapped
+# warm but upbeat; 118 BPM, D A Bm G.
+#   the hook: a pad that opens up, a quiet plucked arpeggio and a heartbeat kick from "150 people" (with a soft hit), a
+#             swell into a low boom on the "rest?" zoom, a shimmer as the white dots fill in
+#   Vince's "Meeting people is easy / hard": darker, the arpeggio and a ticking pulse
+#   "Introducing Peepl": a riser into a hit on the cut to "Peepl", then the groove: four-on-the-floor kick, clap on 2 and
+#             4, offbeat hats, a bouncing eighth-note bass, the plucked arpeggio
+#   the memory playing back: half-time, softer (felt notes); a bloom when play is tapped
 #   the last scene: blooms as the discs and pills come in, a swell into a boom on "Peepl", the full chord, ringing out
-#   typing: a short keyboard click (a bright tick and a soft body) on every typed letter, a little different each time
+#   typing: the user's typing recording (assets/sound/typing.wav), cut into its ~50 keystrokes; each typed letter gets
+#             one (never the same twice in a row), levelled, softened a little and given a touch of room so it sits in
 import json
 import numpy as np, soundfile as sf
 from scipy.signal import butter, sosfilt
@@ -54,44 +56,100 @@ def felt(f, d=0.9):  # soft felt-piano note
     t = tt(d); return lp((np.sin(2 * np.pi * f * t) + 0.25 * np.sin(4 * np.pi * f * t)) * np.exp(-t * 4.5) * np.minimum(1, t / 0.008), 1100)
 def bloom(f, d=1.2):  # soft sine swell
     t = tt(d); return np.sin(2 * np.pi * f * t) * np.sin(np.pi * (t / d)) ** 2 * 0.8
-def key():  # a keyboard key: a bright tick and a soft wooden body, each a little different
-    d = 0.07; t = tt(d)
-    tick = bp(noise(d), 2500, 7000) * np.exp(-t * 900)
-    body = lp(noise(d), 900) * np.exp(-t * 110) * 0.9
-    tone = np.sin(2 * np.pi * rng.uniform(170, 230) * t) * np.exp(-t * 60) * 0.35
-    return (tick * rng.uniform(0.7, 1.0) + body + tone) * rng.uniform(0.75, 1.0)
+# The keystrokes in the user's recording: found by their attack (3ms energy over 0.015, at least 90ms apart), each cut
+# from just before it to just before the next (at most 0.16s: the press and its release), faded out, levelled to the
+# same peak
+def _keystrokes():
+    x, sr = sf.read('hook-150/assets/sound/typing.wav')
+    if x.ndim > 1: x = x.mean(1)
+    w = int(0.003 * sr); e = np.sqrt(np.convolve(x ** 2, np.ones(w) / w, 'same'))
+    on, last = [], -10 ** 9
+    for i in range(1, len(e)):
+        if e[i] > 0.015 >= e[i - 1] and i - last > int(0.09 * sr): on.append(i); last = i
+    bank = []
+    for k, o in enumerate(on):
+        a = max(0, o - int(0.003 * sr)); b = min(len(x), o + int(0.16 * sr), on[k + 1] - int(0.005 * sr) if k + 1 < len(on) else len(x))
+        c = x[a:b].copy(); n = len(c); f = min(n, int(0.025 * sr))
+        c[:int(0.002 * sr)] *= np.linspace(0, 1, int(0.002 * sr)); c[n - f:] *= np.linspace(1, 0, f)
+        bank.append(c / (np.abs(c).max() + 1e-9))
+    return bank
+KEYS = _keystrokes()
+_last = [-1]
+def key():
+    i = int(rng.integers(len(KEYS)))
+    while i == _last[0]: i = int(rng.integers(len(KEYS)))
+    _last[0] = i
+    return KEYS[i] * rng.uniform(0.8, 1.0)
 
-BEAT = 0.6; BAR = 4 * BEAT
-CH = [(146.83, 185.0, 220.0, 277.18), (123.47, 146.83, 185.0, 220.0), (98.0, 123.47, 146.83, 185.0), (110.0, 138.59, 164.81, 220.0)]  # Dmaj7 Bm7 Gmaj7 A
-ROOT = [73.42, 61.74, 49.0, 55.0]
+BEAT = 60 / 118; BAR = 4 * BEAT                             # 118 BPM
+CH = [(146.83, 220.0, 293.66, 369.99), (110.0, 164.81, 220.0, 277.18), (123.47, 185.0, 246.94, 293.66), (98.0, 146.83, 196.0, 246.94)]  # D A Bm G
+ROOT = [73.42, 55.0, 61.74, 49.0]
 S = lambda name: SEG[name]['start']
 E = lambda name: SEG[name]['start'] + SEG[name]['dur']
 cue = lambda name, c: SEG[name]['cues'].get(c)
-groove = [(cue('intro', 'cut'), S('moment')), (S('ask'), S('end') + 0.4)]   # where the beat plays
+DROP = cue('intro', 'cut')                                    # "Peepl": the beat comes in
+groove = [(DROP, S('moment')), (S('ask'), S('end') + 0.6)]    # the full beat
 in_groove = lambda t: any(a is not None and a <= t < b for a, b in groove)
 dark = lambda t: S('problem') <= t < E('problem')
+memory = lambda t: S('moment') <= t < E('moment')
+ending = lambda t: t >= S('end') + 0.6
 
-# The bed: a pad per bar (darker under Vince's "hard" shot), a low drone; softer in the hook and the memory
+def pluck(f, d=0.32, fc=2600):  # a bright, short plucked note
+    t = tt(d); x = 2 * ((f * t) % 1.0) - 1 + 0.5 * np.sin(2 * np.pi * f * t)
+    return lp(x * np.exp(-t * 11) * np.minimum(1, t / 0.003), fc)
+def bass(f, d=0.26):  # a round, short bass note
+    t = tt(d); x = np.sin(2 * np.pi * f * t) + 0.3 * (2 * ((f * t) % 1.0) - 1)
+    return lp(x * np.exp(-t * 7) * np.minimum(1, t / 0.006), 420)
+def hat(open_=False):
+    d = 0.2 if open_ else 0.05; t = tt(d); return hp(noise(d), 7000) * np.exp(-t * (16 if open_ else 70))
+def clap():
+    d = 0.18; t = tt(d); n = bp(noise(d), 900, 3200)
+    env = sum(np.exp(-np.maximum(0, t - o) * 140) * (t >= o) for o in (0, 0.011, 0.022)) * 0.6 + np.exp(-t * 18) * 0.5
+    return n * env
+
+# The bed: a pad per bar that opens up through the hook and is brightest in the groove (darker under Vince's "hard"
+# shot), and a sub
 for bar in range(int(DUR / BAR) + 1):
     t = bar * BAR; c = CH[bar % 4]
-    quiet = t < S('problem') or S('moment') <= t < E('moment')
-    put(t, pad(c, BAR + 0.5, a=0.8, fc=520 if dark(t) else 700), 0.22 if quiet else 0.34)
-    put(t, sub(ROOT[bar % 4], BAR + 0.2), 0.14 if quiet else 0.22)
-# Felt notes and the beat
-for b in range(int(DUR / BEAT) + 1):
-    t = b * BEAT; c = CH[(b // 4) % 4]
+    if t < S('problem'): fc = 500 + 700 * t / max(1, S('problem'))
+    elif dark(t): fc = 600
+    elif in_groove(t) or ending(t): fc = 1300
+    else: fc = 900
+    put(t, pad(c, BAR + 0.5, a=0.5, fc=fc), 0.24 if (t < S('problem') or memory(t)) else 0.3)
+    put(t, sub(ROOT[bar % 4], BAR + 0.2), 0.12 if t < S('problem') else 0.18)
+
+# Eighth notes: the arpeggio (from the hook on, quiet at first), the bass and drums in the groove, half-time in the memory
+ARP = [0, 1, 2, 3, 2, 1, 3, 2]
+for e8 in range(int(DUR / (BEAT / 2)) + 1):
+    t = e8 * BEAT / 2; b = e8 // 2; c = CH[(b // 4) % 4]; r = ROOT[(b // 4) % 4]; on = e8 % 2 == 0
+    note = c[ARP[e8 % 8]] * 2
     if in_groove(t):
-        put(t, kick(), 0.5)
-        if b % 2 == 1: put(t, hp(lp(noise(0.08), 5500), 3000) * np.exp(-tt(0.08) * 60), 0.05)  # brush
-        if b % 4 in (0, 2): put(t, felt(c[(b // 2) % 4] * 2), 0.14)
+        put(t, pluck(note), 0.07)
+        put(t, bass(r * 2 if e8 % 4 == 2 else r), 0.32)
+        if on: put(t, kick(), 0.6)
+        else: put(t, hat(True), 0.035)
+        if on and b % 2 == 1: put(t, clap(), 0.22)
+        put(t + 0.004, hat(), 0.02)
     elif t < S('problem'):
-        if b % 4 == 0: put(t, felt(c[(b // 4) % 4] * 2, 1.4), 0.12)
+        snap = cue('hook', 'snap') or 0
+        if t >= snap: put(t, pluck(note, 0.28, 1800), 0.035 + 0.03 * t / max(1, S('problem')))
+        if t >= snap and on and b % 2 == 0: put(t, kick(), 0.28)            # a heartbeat
     elif dark(t):
-        put(t, hp(noise(0.03), 4000) * np.exp(-tt(0.03) * 120), 0.03)  # ticking pulse
-    elif S('moment') <= t < E('moment'):
-        if b % 2 == 0: put(t, felt(c[(b // 2) % 4] * 2, 1.2), 0.12)
+        put(t, pluck(note, 0.25, 1300), 0.03)
+        if on: put(t, hat(), 0.03)
+        if on and b % 2 == 0: put(t, kick(), 0.3)
+    elif memory(t):
+        if e8 % 8 == 0: put(t, kick(), 0.4)
+        if e8 % 8 == 4: put(t, clap(), 0.12)
+        if on: put(t, felt(note, 1.0), 0.09)
+    elif ending(t):
+        if on: put(t, pluck(note, 0.4, 2200), 0.06)
+        if e8 % 4 == 0: put(t, bass(r, 0.5), 0.25)
     else:
-        if b % 4 == 0: put(t, felt(c[0] * 2, 1.2), 0.1)
+        if on: put(t, pluck(note, 0.28, 1800), 0.05)
+        if on and b % 2 == 0: put(t, kick(), 0.35)
+# A riser into the drop
+put(DROP - 2.0 if DROP else None, swell(2.0, 2400), 0.16)
 
 # Moments
 put(cue('hook', 'snap'), boom(), 0.45); put(cue('hook', 'snap'), bloom(293.66, 1.6), 0.08)
@@ -125,8 +183,13 @@ for i, f in enumerate((587.33, 739.99, 880.0)):
 # Typing
 for s in TL['segments']:
     for k in s['keys']:
-        put(k, key(), 0.62, keys_out)
+        put(k, key(), 0.42, keys_out)
 
+# The keys: softened a little at the top, a short room (a 120ms decaying tail) so they sit in the music
+keys_out = lp(keys_out, 9000)
+ir = rng.standard_normal(int(0.12 * SR)) * np.exp(-np.arange(int(0.12 * SR)) / SR * 40) * 0.035; ir[0] = 1.0
+from scipy.signal import fftconvolve
+keys_out = fftconvolve(keys_out, ir)[:len(keys_out)]
 # Mix: music a little under the keys; level to about -14 LUFS (the studio's rule; RMS -15 dBFS here), soft-limit only
 # the peaks over -3 dBFS, fade in and out
 mix = lp(out, 9000) + keys_out
